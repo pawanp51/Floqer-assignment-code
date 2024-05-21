@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Spin, Modal } from 'antd';
+import { Layout, Spin, Modal, Menu } from 'antd';
+import { BrowserRouter as Router, Route, Routes, Link } from 'react-router-dom';
 import MainTable from './components/MainTable';
 import { SalaryData, loadSalaryData } from './utils/dataLoader';
 import DetailTable from './components/DetailTable';
+import LineGraph from './components/LineGraph';
+import ChatApp from './components/ChatApp';
 
 const { Header, Content } = Layout;
 
@@ -35,29 +38,47 @@ const App: React.FC = () => {
   const selectedYearData = salaryData.find((data) => data.year === selectedYear);
 
   return (
-    <Layout>
-      <Header>
-        <h1 style={{ color: 'white' }}>ML Engineer salaries from 2020 to 2024: Dashboard</h1>
-      </Header>
-      <Content style={{ padding: '50px', cursor: 'pointer'}}>
-        {loading ? (
-          <Spin size="large" />
-        ) : (
-          <>
-            <MainTable data={salaryData} onRowClick={handleRowClick} />
-          </>
-        )}
-      </Content>
-      <Modal
-        title={`Details for ${selectedYear}`}
-        visible={isModalVisible}
-        onCancel={handleModalClose}
-        footer={null}
-      >
-        <DetailTable data={selectedYearData?.jobTitles || null} />
-      </Modal>
-
-    </Layout>
+    <Router>
+      <Layout>
+        <Header>
+          <div className="logo" />
+          <Menu theme="dark" mode="horizontal" defaultSelectedKeys={['1']}>
+            <Menu.Item key="1">
+              <Link to="/">Dashboard</Link>
+            </Menu.Item>
+            <Menu.Item key="2">
+              <Link to="/chat">Chat</Link>
+            </Menu.Item>
+          </Menu>
+        </Header>
+        <Content style={{ padding: '50px', marginTop: 64 }}>
+          <Routes>
+            <Route
+              path="/"
+              element={
+                loading ? (
+                  <Spin size="large" />
+                ) : (
+                  <>
+                    <MainTable data={salaryData} onRowClick={handleRowClick} />
+                    <LineGraph data={salaryData} />
+                    <Modal
+                      title={`Details for ${selectedYear}`}
+                      visible={isModalVisible}
+                      onCancel={handleModalClose}
+                      footer={null}
+                    >
+                      <DetailTable data={selectedYearData?.jobTitles || null} />
+                    </Modal>
+                  </>
+                )
+              }
+            />
+            <Route path="/chat" element={<ChatApp />} />
+          </Routes>
+        </Content>
+      </Layout>
+    </Router>
   );
 };
 
