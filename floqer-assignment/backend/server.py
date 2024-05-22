@@ -1,25 +1,21 @@
 from flask import Flask, request, jsonify
-from flask_cors import CORS
 from langchain_community.document_loaders import CSVLoader
 from langchain_community.vectorstores import FAISS
-from langchain_openai import OpenAIEmbeddings
+from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain.prompts import PromptTemplate
-from langchain_community.chat_models import ChatOpenAI
 from langchain.chains import LLMChain
 from dotenv import load_dotenv
 import os
 
-# Load environment variables
 load_dotenv()
 
-# Set OpenAI API key
-openai_api_key = os.getenv("OPENAI_API_KEY")
+app = Flask(__name__)
 
-# 1. Vectorize the salaries CSV data
-loader = CSVLoader(file_path="public\salaries.csv")
+# 1. Vectorize the sales response CSV data
+loader = CSVLoader(file_path="salaries.csv")
 documents = loader.load()
 
-embeddings = OpenAIEmbeddings(openai_api_key=openai_api_key)
+embeddings = OpenAIEmbeddings()
 db = FAISS.from_documents(documents, embeddings)
 
 # 2. Function for similarity search
@@ -28,8 +24,7 @@ def retrieve_info(query):
     page_contents_array = [doc.page_content for doc in similar_response]
     return page_contents_array
 
-# 3. Setup LLMChain & prompts
-llm = ChatOpenAI(temperature=0, model="gpt-3.5-turbo-16k-0613", openai_api_key=openai_api_key)
+llm = ChatOpenAI(temperature=0, model="gpt-4-turbo")
 
 template = """
 You are a data analyst specializing in machine learning engineer salaries. 
@@ -41,7 +36,7 @@ following these guidelines:
 3/ Ensure the response is clear, concise, and professional.
 
 User's question:
-{message}
+{user_question}
 
 Historical data:
 {best_practice}
@@ -49,8 +44,13 @@ Historical data:
 Please provide the best response to the user's question:
 """
 
-prompt = PromptTemplate(input_variables=["message", "best_practice"], template=template)
+prompt = PromptTemplate(
+    input_variables=["message", "best_practice"],
+    template=template
+)
+
 chain = LLMChain(llm=llm, prompt=prompt)
+
 
 # 4. Retrieval augmented generation
 def generate_response(message):
@@ -58,14 +58,11 @@ def generate_response(message):
     response = chain.run(message=message, best_practice=best_practice)
     return response
 
-# Flask setup
-app = Flask(__name__)
-CORS(app)
 
-@app.route('/chat', methods=['POST'])
-def chat():
+@app.route('/generate_response', methods=['POST'])
+def generate_response_endpoint():
     data = request.json
-    message = data.get('message', '')
+    message = data.get('message')
     if not message:
         return jsonify({"error": "Message is required"}), 400
     response = generate_response(message)
